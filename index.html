@@ -1,22 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Laravel Meetup</title>
-    <meta charset="UTF-8">
-    <style>
-        .center-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
-            font-family: Arial, sans-serif;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coming Soon</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: "Manrope", sans-serif;
+      background: #f7f7f5;
+      color: #18181b;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 620px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      margin-bottom: 24px;
+      border: 1px solid #e4e4e7;
+      border-radius: 999px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #52525b;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+
+    h1 {
+      font-size: clamp(40px, 7vw, 68px);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    p {
+      max-width: 480px;
+      margin: 0 auto;
+      font-size: 17px;
+      line-height: 1.7;
+      color: #71717a;
+    }
+
+    .footer {
+      margin-top: 48px;
+      font-size: 13px;
+      color: #a1a1aa;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="center-text">
-      It works. Really? But for real? Real real? Test 1-2-3
+  <main class="container">
+    <div class="badge">
+      <span class="dot"></span>
+      Something new is coming
     </div>
+
+    <h1>We're building something simple.</h1>
+
+    <p>
+      This space is currently being prepared. Check back soon for something
+      thoughtful, useful, and beautifully simple.
+    </p>
+
+    <div class="footer">
+      © 2026 Your Company
+    </div>
+  </main>
 </body>
 </html>
