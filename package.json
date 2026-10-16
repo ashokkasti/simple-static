@@ -1,0 +1,13 @@
+{
+  "name": "teamcity-multiservice-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example dependency manifest for a frontend, API, and background worker. TeamCity checks and deployment are mocked.",
+  "dependencies": {
+    "bullmq": "^5.58.5",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "react": "^19.1.1",
+    "zod": "^4.1.5"
+  }
+}
