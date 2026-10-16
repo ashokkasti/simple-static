@@ -2,7 +2,7 @@
 parameters:
   env.API_URL: https://app.invisirisk.com
   env.IR_TOKEN: "%IR_TOKEN%"
-  env.IR_RUN_ID: "%system.teamcity.build.id%"
+  env.IR_RUN_ID: "%teamcity.build.id%"
   env.IR_BUILD_URL: "%env.BUILD_URL%"
   env.IR_PROJECT: "%system.teamcity.projectName%"
   env.IR_PIPELINE: "%system.teamcity.buildConfName%"
