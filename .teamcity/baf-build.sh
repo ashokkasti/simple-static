@@ -24,6 +24,7 @@ baf_workdir=$(mktemp -d "${TMPDIR:-/tmp}/simple-static-baf.XXXXXX")
 baf_cleanup_script=/tmp/pse_cleanup/cleanup.sh
 baf_image_ref="${IMAGE_NAME}:${BUILD_ID}"
 baf_started=false
+baf_dependency_container=
 
 baf_finish() {
   baf_status=$?
@@ -48,6 +49,9 @@ baf_finish() {
     fi
   fi
 
+  if [ -n "$baf_dependency_container" ]; then
+    docker rm "$baf_dependency_container" >/dev/null 2>&1
+  fi
   docker image rm "$baf_image_ref" >/dev/null 2>&1
   rm -rf "$baf_workdir"
   printf 'build_id=%s\nexit_code=%s\n' "$BUILD_ID" "$baf_status" > reports/baf/status.txt
@@ -111,4 +115,14 @@ DOCKER_BUILDKIT=1 docker build \
   .
 
 docker image inspect --format '{{.Id}}' "$baf_image_ref" > reports/baf/image-id.txt
+
+# The vendor collector runs on the agent and requires the installed node_modules.
+# Copy them from the image without running the application or installing again.
+mkdir -p "$baf_workdir/dependencies"
+baf_dependency_container=$(docker create "$baf_image_ref")
+docker cp "${baf_dependency_container}:/app/." "$baf_workdir/dependencies/"
+docker rm "$baf_dependency_container" >/dev/null
+baf_dependency_container=
+export WORKSPACE="$baf_workdir/dependencies"
+
 echo "BAF-protected dependency build completed"

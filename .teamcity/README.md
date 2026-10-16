@@ -30,9 +30,11 @@ it must run on an isolated agent, outside the Node step containers.
 2. Use the BAF BuildKit frontend, proxy build argument, and CA secret to run
    `npm ci --omit=dev` in the Docker build. npm keeps TLS verification enabled.
    `--no-cache` ensures this installation runs on every security job execution.
-3. Run the vendor cleanup script on success, failure, or a handled cancellation.
+3. Copy the installed application directory out of a stopped temporary container
+   so the agent-side dependency graph collector can read `node_modules`.
+4. Run the vendor cleanup script on success, failure, or a handled cancellation.
    It receives the same scan ID and the build's success or failure status.
-4. Remove the temporary image and downloaded script. Publish the image ID and
+5. Remove the temporary image, collector workspace, and downloaded script. Publish the image ID and
    exit status from `reports/baf` as TeamCity artifacts.
 
 If the build succeeds but cleanup fails, the job fails. If both fail, the build's
