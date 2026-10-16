@@ -17,7 +17,7 @@ to the `APP_TOKEN` environment variable expected by BAF.
 `API_URL` defaults to `https://app.invisirisk.com`. The BuildKit frontend is
 `public.ecr.aws/w3c0c0n7/invisirisk/baf-buildkit:latest`.
 
-The job runs directly on a JetBrains-hosted `Linux-Small` agent with Docker and
+The job runs directly on a JetBrains-hosted `Ubuntu-24.04-Small` agent with Docker and
 passwordless sudo. BAF startup modifies the agent's proxy and trust settings, so
 it must run on an isolated agent, outside the Node step containers.
 
