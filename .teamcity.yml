@@ -21,7 +21,7 @@ jobs:
         node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
 
         sudo -E pse-data-collector cleanup
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   QualityChecks:
     name: Mock lint and unit tests
@@ -45,7 +45,7 @@ jobs:
     - path: reports/quality/result.txt
       share-with-jobs: false
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   BuildFrontend:
     name: Package frontend example
@@ -69,7 +69,7 @@ jobs:
     - path: dist/frontend/index.html
       share-with-jobs: true
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   BuildApi:
     name: Mock API build
@@ -92,7 +92,7 @@ jobs:
     - path: dist/api/service.json
       share-with-jobs: true
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   BuildWorker:
     name: Mock background worker build
@@ -115,7 +115,7 @@ jobs:
     - path: dist/worker/service.json
       share-with-jobs: true
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   IntegrationChecks:
     name: Mock integration checks
@@ -149,7 +149,7 @@ jobs:
     - path: reports/integration/result.txt
       share-with-jobs: false
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   PackageRelease:
     name: Assemble release archive
@@ -181,7 +181,7 @@ jobs:
     - path: release/application.tar.gz
       share-with-jobs: true
       publish-artifact: true
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
   DeployStaging:
     name: Mock staging deployment
@@ -203,7 +203,7 @@ jobs:
         echo "No infrastructure was modified."
 
         sudo -E pse-data-collector cleanup
-    runs-on: Ubuntu-24.04-Small
+    runs-on: Linux-Small
     allow-reuse: false
 secrets:
   IR_TOKEN: credentialsJSON:56d435cf-5bbc-4091-931a-0b6005e9ac1c

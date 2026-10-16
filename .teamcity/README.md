@@ -8,7 +8,7 @@ and [the simplified BAF integration, commit `f1a7375`](https://github.com/ashokk
 | Area | Before BAF | After BAF |
 | --- | --- | --- |
 | Jobs | Nine jobs, including a mock `SecurityScan` | Eight jobs; BAF runs inside every job |
-| Execution | Scripts ran in `node:22-bookworm-slim` containers | Scripts run directly on `Ubuntu-24.04-Small` agents |
+| Execution | Scripts ran in `node:22-bookworm-slim` containers | Scripts run directly on TeamCity-hosted `Linux-Small` agents |
 | BAF startup | None | Bootstrap runs at the start of each job |
 | Environment | No BAF environment loaded | Each job sources `/tmp/ir_envs` |
 | Dependency installation | Manifest existed, but build jobs did not install dependencies | Frontend, API, and worker jobs run `npm ci` after BAF setup |
@@ -102,6 +102,7 @@ Store the token in the TeamCity pipeline's Secrets settings under `IR_TOKEN`.
 The existing `secrets.IR_TOKEN` entry in YAML is a TeamCity credential reference,
 not the token value. GitHub repository secrets are not used by this pipeline.
 
+Jobs request TeamCity's hosted `Linux-Small` agent type through `runs-on`.
 Agents need Bash, curl, Node.js/npm, tar, and passwordless sudo. They also need
 network access to the BAF API and dependency sources used by the build.
 
