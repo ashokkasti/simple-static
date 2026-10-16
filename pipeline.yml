@@ -105,14 +105,20 @@ jobs:
   IntegrationChecks:
     name: Mock integration checks
     dependencies:
-      - BuildFrontend
-      - BuildApi
-      - BuildWorker
+      - BuildFrontend:
+          files:
+            - dist/frontend/index.html
+      - BuildApi:
+          files:
+            - dist/api/service.json
+      - BuildWorker:
+          files:
+            - dist/worker/service.json
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           test -f dist/frontend/index.html
           test -f dist/api/service.json
           test -f dist/worker/service.json
@@ -127,15 +133,21 @@ jobs:
   PackageRelease:
     name: Assemble release archive
     dependencies:
-      - BuildFrontend
-      - BuildApi
-      - BuildWorker
+      - BuildFrontend:
+          files:
+            - dist/frontend/index.html
+      - BuildApi:
+          files:
+            - dist/api/service.json
+      - BuildWorker:
+          files:
+            - dist/worker/service.json
       - IntegrationChecks
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           mkdir -p release
           cp package.json dist/package.json
           tar -czf release/application.tar.gz -C dist frontend api worker package.json
@@ -147,12 +159,14 @@ jobs:
   DeployStaging:
     name: Mock staging deployment
     dependencies:
-      - PackageRelease
+      - PackageRelease:
+          files:
+            - release/application.tar.gz
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           test -s release/application.tar.gz
           tar -tzf release/application.tar.gz
           echo "MOCK: upload release, migrate database, deploy services, and check health"
