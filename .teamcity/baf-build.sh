@@ -6,12 +6,11 @@ set -eo pipefail
 : "${API_URL:?Set API_URL to the InvisiRisk portal URL}"
 : "${APP_TOKEN:?Set the TeamCity pipeline secret IR_TOKEN}"
 : "${BUILD_ID:?TeamCity build ID is required}"
-: "${IMAGE_NAME:?Docker image name is required}"
-: "${BAF_BUILDKIT_IMAGE:?BAF BuildKit frontend is required}"
 
 command -v curl >/dev/null
 command -v python3 >/dev/null
-docker info >/dev/null
+command -v node >/dev/null
+command -v npm >/dev/null
 if [ "$(id -u)" -ne 0 ]; then
   sudo -n true
 fi
@@ -22,9 +21,7 @@ export CI_BUILDER=teamcity WORKSPACE="$PWD"
 mkdir -p reports/baf
 baf_workdir=$(mktemp -d "${TMPDIR:-/tmp}/simple-static-baf.XXXXXX")
 baf_cleanup_script=/tmp/pse_cleanup/cleanup.sh
-baf_image_ref="${IMAGE_NAME}:${BUILD_ID}"
 baf_started=false
-baf_dependency_container=
 
 baf_finish() {
   baf_status=$?
@@ -49,10 +46,6 @@ baf_finish() {
     fi
   fi
 
-  if [ -n "$baf_dependency_container" ]; then
-    docker rm "$baf_dependency_container" >/dev/null 2>&1
-  fi
-  docker image rm "$baf_image_ref" >/dev/null 2>&1
   rm -rf "$baf_workdir"
   printf 'build_id=%s\nexit_code=%s\n' "$BUILD_ID" "$baf_status" > reports/baf/status.txt
   exit "$baf_status"
@@ -106,25 +99,13 @@ baf_ca_certificate="${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/pse.pem}"
 test -s "$baf_ca_certificate"
 
 echo "Installing npm dependencies through the BAF proxy"
-DOCKER_BUILDKIT=1 docker build \
-  --no-cache \
-  --platform linux/amd64 \
-  --file .teamcity/Dockerfile.baf \
-  --tag "$baf_image_ref" \
-  --build-arg "BUILDKIT_SYNTAX=$BAF_BUILDKIT_IMAGE" \
-  --secret "id=pse-ca,src=$baf_ca_certificate" \
-  --build-arg "PSE_PROXY=http://${PSE_PROXY_IP}:3128" \
-  .
-
-docker image inspect --format '{{.Id}}' "$baf_image_ref" > reports/baf/image-id.txt
-
-# The vendor collector runs on the agent and requires the installed node_modules.
-# Copy them from the image without running the application or installing again.
-mkdir -p "$baf_workdir/dependencies"
-baf_dependency_container=$(docker create "$baf_image_ref")
-docker cp "${baf_dependency_container}:/app/." "$baf_workdir/dependencies/"
-docker rm "$baf_dependency_container" >/dev/null
-baf_dependency_container=
-export WORKSPACE="$baf_workdir/dependencies"
+export npm_config_proxy="http://${PSE_PROXY_IP}:3128"
+export npm_config_https_proxy="$npm_config_proxy"
+export NODE_EXTRA_CA_CERTS="$baf_ca_certificate"
+node --version
+npm --version
+# Use a fresh cache so this job exercises BAF instead of reusing downloaded tarballs.
+npm ci --omit=dev --no-audit --no-fund --cache "$baf_workdir/npm-cache"
+npm ls --omit=dev --json > reports/baf/dependencies.json
 
 echo "BAF-protected dependency build completed"

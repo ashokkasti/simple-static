@@ -36,14 +36,12 @@ jobs:
     parameters:
       env.API_URL: https://app.invisirisk.com
       env.APP_TOKEN: '%IR_TOKEN%'
-      env.IMAGE_NAME: simple-static-baf
-      env.BAF_BUILDKIT_IMAGE: public.ecr.aws/w3c0c0n7/invisirisk/baf-buildkit:latest
       env.BUILD_ID: '%teamcity.build.id%'
       env.BUILD_WORKFLOW: '%system.teamcity.buildType.id%'
       env.BUILDER_URL: '%teamcity.serverUrl%'
     steps:
       - type: script
-        name: Start BAF, build npm dependency image, and upload results
+        name: Start BAF, install npm dependencies, and upload results
         script-content: bash .teamcity/baf-build.sh
     files-publication:
       - path: reports/baf
