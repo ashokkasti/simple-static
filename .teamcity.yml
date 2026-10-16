@@ -28,19 +28,25 @@ jobs:
         share-with-jobs: false
         publish-artifact: true
   SecurityScan:
-    name: Mock dependency security scan
+    name: InvisiRisk BAF dependency build
     dependencies:
       - ValidateManifest
+    runs-on: Linux-Small
+    allow-reuse: false
+    parameters:
+      env.API_URL: https://app.invisirisk.com
+      env.APP_TOKEN: '%IR_TOKEN%'
+      env.IMAGE_NAME: simple-static-baf
+      env.BAF_BUILDKIT_IMAGE: public.ecr.aws/w3c0c0n7/invisirisk/baf-buildkit:latest
+      env.BUILD_ID: '%system.teamcity.build.id%'
+      env.BUILD_WORKFLOW: '%system.teamcity.buildType.id%'
+      env.BUILDER_URL: '%teamcity.serverUrl%'
     steps:
       - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          echo "MOCK: scan dependencies and check license policy"
-          mkdir -p reports/security
-          echo "Mock only. No dependency scan executed." > reports/security/result.txt
+        name: Start BAF, build npm dependency image, and upload results
+        script-content: bash .teamcity/baf-build.sh
     files-publication:
-      - path: reports/security/result.txt
+      - path: reports/baf
         share-with-jobs: false
         publish-artifact: true
   BuildFrontend:

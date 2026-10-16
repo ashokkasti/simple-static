@@ -1,0 +1,17 @@
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+
+ARG PSE_PROXY
+# Trust the BAF CA only during npm ci. It is never copied into an image layer.
+RUN --mount=type=secret,id=pse-ca,required=true \
+    test -n "$PSE_PROXY" && \
+    HTTP_PROXY="$PSE_PROXY" \
+    HTTPS_PROXY="$PSE_PROXY" \
+    npm_config_proxy="$PSE_PROXY" \
+    npm_config_https_proxy="$PSE_PROXY" \
+    NODE_EXTRA_CA_CERTS=/run/secrets/pse-ca \
+    npm ci --omit=dev --no-audit --no-fund
+
+COPY index.html ./
