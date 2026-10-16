@@ -10,6 +10,7 @@ set -eo pipefail
 : "${BAF_BUILDKIT_IMAGE:?BAF BuildKit frontend is required}"
 
 command -v curl >/dev/null
+command -v python3 >/dev/null
 docker info >/dev/null
 if [ "$(id -u)" -ne 0 ]; then
   sudo -n true
@@ -62,6 +63,31 @@ curl --fail --show-error --silent --location --retry 3 \
   --connect-timeout 15 --max-time 120 \
   "${API_URL%/}/pse/bitbucket-setup/pse_startup" \
   --output "$baf_workdir/startup.sh"
+
+# The current portal returns data.scan_id; the vendor startup expects id.
+# Supplying SCAN_ID makes startup reuse this scan instead of parsing a new one.
+echo "Creating the InvisiRisk scan"
+python3 -c 'import json, os, sys; json.dump({"api_key": os.environ["APP_TOKEN"]}, sys.stdout)' |
+  curl --fail --show-error --silent --location \
+    --connect-timeout 15 --max-time 60 \
+    --header 'Content-Type: application/json' \
+    --data-binary @- \
+    "${API_URL%/}/utilityapi/v1/scan" \
+    --output "$baf_workdir/scan.json"
+SCAN_ID=$(python3 - "$baf_workdir/scan.json" <<'PY'
+import json
+import sys
+import uuid
+
+with open(sys.argv[1]) as response:
+    payload = json.load(response)
+scan_id = payload.get("data", {}).get("scan_id") or payload.get("id")
+if payload.get("success") is False or not scan_id:
+    sys.exit("InvisiRisk did not return a scan ID")
+print(uuid.UUID(scan_id))
+PY
+)
+export SCAN_ID
 
 baf_started=true
 # Keep SCAN_ID and proxy exports in this shell so cleanup can end the same scan.

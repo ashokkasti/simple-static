@@ -23,8 +23,10 @@ it must run on an isolated agent, outside the Node step containers.
 
 ## Build lifecycle
 
-1. Download the vendor startup script and source it in the job's Bash process.
+1. Create a scan using the portal's `data.scan_id` response field, then download
+   the vendor startup script and source it in the job's Bash process.
    This retains `SCAN_ID` and proxy variables for cleanup.
+   Passing `SCAN_ID` also avoids the vendor script's outdated scan-response parser.
 2. Use the BAF BuildKit frontend, proxy build argument, and CA secret to run
    `npm ci --omit=dev` in the Docker build. npm keeps TLS verification enabled.
    `--no-cache` ensures this installation runs on every security job execution.
