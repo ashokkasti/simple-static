@@ -1,0 +1,147 @@
+parameters:
+  container-image: node:22-bookworm-slim
+jobs:
+  ValidateManifest:
+    name: Validate dependency manifest
+    steps:
+      - type: script
+        name: Read application dependencies
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
+  QualityChecks:
+    name: Mock lint and unit tests
+    dependencies:
+      - ValidateManifest
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          echo "MOCK: lint frontend, API, and worker sources"
+          echo "MOCK: run unit tests and collect coverage"
+          mkdir -p reports/quality
+          echo "Mock only. No lint or tests executed." > reports/quality/result.txt
+    files-publication:
+      - path: reports/quality/result.txt
+        share-with-jobs: false
+        publish-artifact: true
+  SecurityScan:
+    name: Mock dependency security scan
+    dependencies:
+      - ValidateManifest
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          echo "MOCK: scan dependencies and check license policy"
+          mkdir -p reports/security
+          echo "Mock only. No dependency scan executed." > reports/security/result.txt
+    files-publication:
+      - path: reports/security/result.txt
+        share-with-jobs: false
+        publish-artifact: true
+  BuildFrontend:
+    name: Package frontend example
+    dependencies:
+      - QualityChecks
+      - SecurityScan
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          mkdir -p dist/frontend
+          cp index.html dist/frontend/index.html
+          echo "Packaged the existing static frontend"
+    files-publication:
+      - path: dist/frontend/index.html
+        share-with-jobs: true
+        publish-artifact: true
+  BuildApi:
+    name: Mock API build
+    dependencies:
+      - QualityChecks
+      - SecurityScan
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          mkdir -p dist/api
+          echo '{"service":"api","mock":true,"stack":["express","pg","zod"]}' > dist/api/service.json
+    files-publication:
+      - path: dist/api/service.json
+        share-with-jobs: true
+        publish-artifact: true
+  BuildWorker:
+    name: Mock background worker build
+    dependencies:
+      - QualityChecks
+      - SecurityScan
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          mkdir -p dist/worker
+          echo '{"service":"worker","mock":true,"stack":["bullmq","pg"]}' > dist/worker/service.json
+    files-publication:
+      - path: dist/worker/service.json
+        share-with-jobs: true
+        publish-artifact: true
+  IntegrationChecks:
+    name: Mock integration checks
+    dependencies:
+      - BuildFrontend
+      - BuildApi
+      - BuildWorker
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          test -f dist/frontend/index.html
+          test -f dist/api/service.json
+          test -f dist/worker/service.json
+          echo "MOCK: exercise frontend -> API -> PostgreSQL -> Redis worker"
+          mkdir -p reports/integration
+          echo "Artifact presence checked. Application integration tests are mocked." > reports/integration/result.txt
+    files-publication:
+      - path: reports/integration/result.txt
+        share-with-jobs: false
+        publish-artifact: true
+  PackageRelease:
+    name: Assemble release archive
+    dependencies:
+      - BuildFrontend
+      - BuildApi
+      - BuildWorker
+      - IntegrationChecks
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          mkdir -p release
+          cp package.json dist/package.json
+          tar -czf release/application.tar.gz -C dist frontend api worker package.json
+    files-publication:
+      - path: release/application.tar.gz
+        share-with-jobs: true
+        publish-artifact: true
+  DeployStaging:
+    name: Mock staging deployment
+    dependencies:
+      - PackageRelease
+    steps:
+      - type: script
+        docker-image: '%container-image%'
+        script-content: |-
+          set -eu
+          test -s release/application.tar.gz
+          tar -tzf release/application.tar.gz
+          echo "MOCK: upload release, migrate database, deploy services, and check health"
+          echo "No infrastructure was modified."
