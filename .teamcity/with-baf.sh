@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run on an isolated Ubuntu agent, outside TeamCity's step container.
+# Wrap one job script with an independent BAF session on an isolated Ubuntu agent.
 set +x
 set -eo pipefail
 
@@ -9,8 +9,6 @@ set -eo pipefail
 
 command -v curl >/dev/null
 command -v python3 >/dev/null
-command -v node >/dev/null
-command -v npm >/dev/null
 if [ "$(id -u)" -ne 0 ]; then
   sudo -n true
 fi
@@ -34,6 +32,11 @@ baf_finish() {
 
   if [ "$baf_started" = true ]; then
     if [ -f "$baf_cleanup_script" ]; then
+      if [ -d "$WORKSPACE/node_modules" ]; then
+        export PSE_COLLECT_DEPENDENCIES=true
+      else
+        export PSE_COLLECT_DEPENDENCIES=false
+      fi
       echo "Uploading BAF build data and cleaning up"
       bash "$baf_cleanup_script"
       baf_cleanup_status=$?
@@ -54,6 +57,10 @@ baf_finish() {
 trap baf_finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+# Read the job script before startup tools can consume standard input.
+cat > "$baf_workdir/commands.sh"
+test -s "$baf_workdir/commands.sh"
 
 echo "Starting InvisiRisk BAF for TeamCity build $BUILD_ID"
 curl --fail --show-error --silent --location --retry 3 \
@@ -98,14 +105,15 @@ trap - ERR
 baf_ca_certificate="${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/pse.pem}"
 test -s "$baf_ca_certificate"
 
-echo "Installing npm dependencies through the BAF proxy"
 export npm_config_proxy="http://${PSE_PROXY_IP}:3128"
 export npm_config_https_proxy="$npm_config_proxy"
 export NODE_EXTRA_CA_CERTS="$baf_ca_certificate"
-node --version
-npm --version
-# Use a fresh cache so this job exercises BAF instead of reusing downloaded tarballs.
-npm ci --omit=dev --no-audit --no-fund --cache "$baf_workdir/npm-cache"
-npm ls --omit=dev --json > reports/baf/dependencies.json
+# Each job gets a fresh npm cache if its commands install dependencies.
+export npm_config_cache="$baf_workdir/npm-cache"
 
-echo "BAF-protected dependency build completed"
+echo "Running job commands under InvisiRisk BAF"
+bash -e "$baf_workdir/commands.sh"
+if [ -d "$WORKSPACE/node_modules" ]; then
+  npm ls --omit=dev --json > reports/baf/dependencies.json
+fi
+echo "BAF-protected job commands completed"

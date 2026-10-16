@@ -1,167 +1,224 @@
+---
 parameters:
-  container-image: node:22-bookworm-slim
+  env.API_URL: https://app.invisirisk.com
+  env.APP_TOKEN: "%IR_TOKEN%"
+  env.BUILDER_URL: "%teamcity.serverUrl%"
 jobs:
   ValidateManifest:
     name: Validate dependency manifest
     steps:
-      - type: script
-        name: Read application dependencies
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
-  QualityChecks:
-    name: Mock lint and unit tests
-    dependencies:
-      - ValidateManifest
-    steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          echo "MOCK: lint frontend, API, and worker sources"
-          echo "MOCK: run unit tests and collect coverage"
-          mkdir -p reports/quality
-          echo "Mock only. No lint or tests executed." > reports/quality/result.txt
-    files-publication:
-      - path: reports/quality/result.txt
-        share-with-jobs: false
-        publish-artifact: true
-  SecurityScan:
-    name: InvisiRisk BAF dependency build
-    dependencies:
-      - ValidateManifest
+    - type: script
+      name: Read application dependencies
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eu
+        node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
+        BAF_COMMANDS
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
     parameters:
-      env.API_URL: https://app.invisirisk.com
-      env.APP_TOKEN: '%IR_TOKEN%'
-      env.BUILD_ID: '%teamcity.build.id%'
-      env.BUILD_WORKFLOW: '%system.teamcity.buildType.id%'
-      env.BUILDER_URL: '%teamcity.serverUrl%'
-    steps:
-      - type: script
-        name: Start BAF, install npm dependencies, and upload results
-        script-content: bash .teamcity/baf-build.sh
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
     files-publication:
-      - path: reports/baf
-        share-with-jobs: false
-        publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+  QualityChecks:
+    name: Mock lint and unit tests
+    dependencies:
+    - ValidateManifest
+    steps:
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eu
+        echo "MOCK: lint frontend, API, and worker sources"
+        echo "MOCK: run unit tests and collect coverage"
+        mkdir -p reports/quality
+        echo "Mock only. No lint or tests executed." > reports/quality/result.txt
+        BAF_COMMANDS
+    files-publication:
+    - path: reports/quality/result.txt
+      share-with-jobs: false
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   BuildFrontend:
     name: Package frontend example
     dependencies:
-      - QualityChecks
-      - SecurityScan
+    - QualityChecks
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          mkdir -p dist/frontend
-          cp index.html dist/frontend/index.html
-          echo "Packaged the existing static frontend"
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eu
+        npm ci --omit=dev --no-audit --no-fund
+        mkdir -p dist/frontend
+        cp index.html dist/frontend/index.html
+        echo "Packaged the existing static frontend"
+        BAF_COMMANDS
     files-publication:
-      - path: dist/frontend/index.html
-        share-with-jobs: true
-        publish-artifact: true
+    - path: dist/frontend/index.html
+      share-with-jobs: true
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   BuildApi:
     name: Mock API build
     dependencies:
-      - QualityChecks
-      - SecurityScan
+    - QualityChecks
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          mkdir -p dist/api
-          echo '{"service":"api","mock":true,"stack":["express","pg","zod"]}' > dist/api/service.json
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eu
+        npm ci --omit=dev --no-audit --no-fund
+        mkdir -p dist/api
+        echo '{"service":"api","mock":true,"stack":["express","pg","zod"]}' > dist/api/service.json
+        BAF_COMMANDS
     files-publication:
-      - path: dist/api/service.json
-        share-with-jobs: true
-        publish-artifact: true
+    - path: dist/api/service.json
+      share-with-jobs: true
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   BuildWorker:
     name: Mock background worker build
     dependencies:
-      - QualityChecks
-      - SecurityScan
+    - QualityChecks
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eu
-          mkdir -p dist/worker
-          echo '{"service":"worker","mock":true,"stack":["bullmq","pg"]}' > dist/worker/service.json
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eu
+        npm ci --omit=dev --no-audit --no-fund
+        mkdir -p dist/worker
+        echo '{"service":"worker","mock":true,"stack":["bullmq","pg"]}' > dist/worker/service.json
+        BAF_COMMANDS
     files-publication:
-      - path: dist/worker/service.json
-        share-with-jobs: true
-        publish-artifact: true
+    - path: dist/worker/service.json
+      share-with-jobs: true
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   IntegrationChecks:
     name: Mock integration checks
     dependencies:
-      - BuildFrontend:
-          files:
-            - dist/frontend/index.html
-      - BuildApi:
-          files:
-            - dist/api/service.json
-      - BuildWorker:
-          files:
-            - dist/worker/service.json
+    - BuildFrontend:
+        files:
+        - dist/frontend/index.html
+    - BuildApi:
+        files:
+        - dist/api/service.json
+    - BuildWorker:
+        files:
+        - dist/worker/service.json
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eux
-          test -f dist/frontend/index.html
-          test -f dist/api/service.json
-          test -f dist/worker/service.json
-          echo "MOCK: exercise frontend -> API -> PostgreSQL -> Redis worker"
-          mkdir -p reports/integration
-          echo "Artifact presence checked. Application integration tests are mocked." > reports/integration/result.txt
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eux
+        test -f dist/frontend/index.html
+        test -f dist/api/service.json
+        test -f dist/worker/service.json
+        echo "MOCK: exercise frontend -> API -> PostgreSQL -> Redis worker"
+        mkdir -p reports/integration
+        echo "Artifact presence checked. Application integration tests are mocked." > reports/integration/result.txt
+        BAF_COMMANDS
     files-publication:
-      - path: reports/integration/result.txt
-        share-with-jobs: false
-        publish-artifact: true
+    - path: reports/integration/result.txt
+      share-with-jobs: false
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   PackageRelease:
     name: Assemble release archive
     dependencies:
-      - BuildFrontend:
-          files:
-            - dist/frontend/index.html
-      - BuildApi:
-          files:
-            - dist/api/service.json
-      - BuildWorker:
-          files:
-            - dist/worker/service.json
-      - IntegrationChecks
+    - BuildFrontend:
+        files:
+        - dist/frontend/index.html
+    - BuildApi:
+        files:
+        - dist/api/service.json
+    - BuildWorker:
+        files:
+        - dist/worker/service.json
+    - IntegrationChecks
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eux
-          mkdir -p release
-          cp package.json dist/package.json
-          tar -czf release/application.tar.gz -C dist frontend api worker package.json
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eux
+        mkdir -p release
+        cp package.json dist/package.json
+        tar -czf release/application.tar.gz -C dist frontend api worker package.json
+        BAF_COMMANDS
     files-publication:
-      - path: release/application.tar.gz
-        share-with-jobs: true
-        publish-artifact: true
+    - path: release/application.tar.gz
+      share-with-jobs: true
+      publish-artifact: true
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
   DeployStaging:
     name: Mock staging deployment
     dependencies:
-      - PackageRelease:
-          files:
-            - release/application.tar.gz
+    - PackageRelease:
+        files:
+        - release/application.tar.gz
     steps:
-      - type: script
-        docker-image: '%container-image%'
-        script-content: |-
-          set -eux
-          test -s release/application.tar.gz
-          tar -tzf release/application.tar.gz
-          echo "MOCK: upload release, migrate database, deploy services, and check health"
-          echo "No infrastructure was modified."
+    - type: script
+      script-content: |
+        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        set -eux
+        test -s release/application.tar.gz
+        tar -tzf release/application.tar.gz
+        echo "MOCK: upload release, migrate database, deploy services, and check health"
+        echo "No infrastructure was modified."
+        BAF_COMMANDS
+    runs-on: Ubuntu-24.04-Small
+    allow-reuse: false
+    parameters:
+      env.BUILD_ID: "%teamcity.build.id%"
+      env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
+    files-publication:
+    - path: reports/baf
+      share-with-jobs: false
+      publish-artifact: true
 secrets:
   IR_TOKEN: credentialsJSON:56d435cf-5bbc-4091-931a-0b6005e9ac1c
