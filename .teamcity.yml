@@ -1,8 +1,8 @@
 ---
 parameters:
   env.API_URL: https://app.invisirisk.com
-  env.APP_TOKEN: "%IR_TOKEN%"
   env.BUILDER_URL: "%teamcity.serverUrl%"
+  env.IR_TOKEN: "%IR_TOKEN%"
 jobs:
   ValidateManifest:
     name: Validate dependency manifest
@@ -10,19 +10,39 @@ jobs:
     - type: script
       name: Read application dependencies
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eu
         node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
-        BAF_COMMANDS
+        JOB_SCRIPT
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
     parameters:
       env.BUILD_ID: "%teamcity.build.id%"
       env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
-    files-publication:
-    - path: reports/baf
-      share-with-jobs: false
-      publish-artifact: true
   QualityChecks:
     name: Mock lint and unit tests
     dependencies:
@@ -30,18 +50,39 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eu
         echo "MOCK: lint frontend, API, and worker sources"
         echo "MOCK: run unit tests and collect coverage"
         mkdir -p reports/quality
         echo "Mock only. No lint or tests executed." > reports/quality/result.txt
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: reports/quality/result.txt
-      share-with-jobs: false
-      publish-artifact: true
-    - path: reports/baf
       share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
@@ -56,19 +97,40 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eu
         npm ci --omit=dev --no-audit --no-fund
         mkdir -p dist/frontend
         cp index.html dist/frontend/index.html
         echo "Packaged the existing static frontend"
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: dist/frontend/index.html
       share-with-jobs: true
-      publish-artifact: true
-    - path: reports/baf
-      share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
@@ -82,18 +144,39 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eu
         npm ci --omit=dev --no-audit --no-fund
         mkdir -p dist/api
         echo '{"service":"api","mock":true,"stack":["express","pg","zod"]}' > dist/api/service.json
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: dist/api/service.json
       share-with-jobs: true
-      publish-artifact: true
-    - path: reports/baf
-      share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
@@ -107,18 +190,39 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eu
         npm ci --omit=dev --no-audit --no-fund
         mkdir -p dist/worker
         echo '{"service":"worker","mock":true,"stack":["bullmq","pg"]}' > dist/worker/service.json
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: dist/worker/service.json
       share-with-jobs: true
-      publish-artifact: true
-    - path: reports/baf
-      share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
@@ -140,7 +244,31 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eux
         test -f dist/frontend/index.html
         test -f dist/api/service.json
@@ -148,12 +276,9 @@ jobs:
         echo "MOCK: exercise frontend -> API -> PostgreSQL -> Redis worker"
         mkdir -p reports/integration
         echo "Artifact presence checked. Application integration tests are mocked." > reports/integration/result.txt
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: reports/integration/result.txt
-      share-with-jobs: false
-      publish-artifact: true
-    - path: reports/baf
       share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
@@ -177,18 +302,39 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eux
         mkdir -p release
         cp package.json dist/package.json
         tar -czf release/application.tar.gz -C dist frontend api worker package.json
-        BAF_COMMANDS
+        JOB_SCRIPT
     files-publication:
     - path: release/application.tar.gz
       share-with-jobs: true
-      publish-artifact: true
-    - path: reports/baf
-      share-with-jobs: false
       publish-artifact: true
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
@@ -204,21 +350,41 @@ jobs:
     steps:
     - type: script
       script-content: |
-        bash .teamcity/with-baf.sh <<'BAF_COMMANDS'
+        bash -se <<'JOB_SCRIPT'
+        set +x
+        set -o pipefail
+
+        baf_cleanup() {
+          status=$?
+          trap - EXIT INT TERM
+          if command -v pse-data-collector >/dev/null 2>&1; then
+            if pse-data-collector cleanup; then
+              :
+            else
+              cleanup_status=$?
+              [ "$status" -ne 0 ] || status=$cleanup_status
+            fi
+          fi
+          exit "$status"
+        }
+        trap baf_cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+        . /tmp/ir_envs
+        command -v pse-data-collector >/dev/null
+
         set -eux
         test -s release/application.tar.gz
         tar -tzf release/application.tar.gz
         echo "MOCK: upload release, migrate database, deploy services, and check health"
         echo "No infrastructure was modified."
-        BAF_COMMANDS
+        JOB_SCRIPT
     runs-on: Ubuntu-24.04-Small
     allow-reuse: false
     parameters:
       env.BUILD_ID: "%teamcity.build.id%"
       env.BUILD_WORKFLOW: "%system.teamcity.buildType.id%"
-    files-publication:
-    - path: reports/baf
-      share-with-jobs: false
-      publish-artifact: true
 secrets:
   IR_TOKEN: credentialsJSON:56d435cf-5bbc-4091-931a-0b6005e9ac1c

@@ -1,38 +1,31 @@
 # InvisiRisk BAF in TeamCity
 
-All eight jobs in `/.teamcity.yml` use `.teamcity/with-baf.sh` to start their own
-BAF session, run their commands, and upload results during cleanup. There is no
-separate InvisiRisk job. The frontend, API, and worker jobs each run `npm ci`
-directly on their agent before their existing application commands.
+All eight jobs in `/.teamcity.yml` run the same bootstrap flow before their
+application commands:
 
-Each job runs on a JetBrains-hosted `Ubuntu-24.04-Small` agent. Job result reuse
-is disabled so BAF runs for every job execution. Application commands run on the
-agent; the vendor BAF startup uses Docker internally to retrieve its binary.
+```sh
+curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash
+. /tmp/ir_envs
+```
+
+An exit trap invokes `pse-data-collector cleanup` when the commands succeed,
+fail, or receive a handled cancellation. Cleanup failures fail successful jobs;
+command failures retain their original exit code. Forced agent shutdowns cannot
+run shell traps.
+
+The bootstrap and cleanup are inline in each job. There is no separate BAF job,
+local wrapper script, manual scan API call, or application Docker build.
 
 ## Configuration
 
-In the pipeline's **Settings > Secrets**, create `IR_TOKEN` with your InvisiRisk
-app token and save. TeamCity commits only its `credentialsJSON` reference.
-The pipeline maps `IR_TOKEN` to `APP_TOKEN` for every job.
-`API_URL` defaults to `https://app.invisirisk.com`.
+The pipeline maps the TeamCity secret `IR_TOKEN` to the environment variable of
+the same name. `API_URL` defaults to `https://app.invisirisk.com`. Secret values
+remain in TeamCity; GitHub stores only their `credentialsJSON` references.
 
-Push changes to `/.teamcity.yml` on GitHub to update TeamCity automatically.
+Every job runs directly on an Ubuntu 24.04 agent with curl, Bash, and passwordless
+sudo. Result reuse is disabled so every job execution runs bootstrap and cleanup.
+The frontend, API, and worker jobs each run `npm ci` under BAF before their
+existing application commands. The remaining application checks are mocked.
 
-## Job lifecycle
-
-1. Create a scan using the portal's `data.scan_id` response field and source the
-   vendor startup script in the wrapper's Bash process. Retain `SCAN_ID`, proxy,
-   and CA variables for the job and cleanup.
-2. Run the job script under BAF. npm receives the proxy and CA through environment
-   variables and uses a fresh cache. TLS verification remains enabled.
-3. If the job installed `node_modules`, publish its dependency tree and enable
-   dependency graph collection. Jobs without installed dependencies still record
-   their own BAF session and skip dependency graph collection.
-4. Run vendor cleanup on success, failure, or a handled cancellation. Publish
-   `reports/baf` artifacts for each job and remove the temporary script and cache.
-
-A cleanup failure fails an otherwise successful job. A command failure retains
-its original exit code. A forced agent shutdown cannot execute shell traps.
-BAF covers commands inside the wrapper; TeamCity checkout happens before startup.
-
-Adapted from the [AWS CodeBuild Non Docker Build NPM example](https://github.com/ir-playground/invisirisk-baf-setup-examples/tree/77cd183283a17575ffc9c995fac21f6afa2bcdac/AWS%20CodeBuild%20Non%20Docker%20Build%20NPM).
+TeamCity loads GitHub changes to `/.teamcity.yml` automatically. BAF starts after
+TeamCity checks out the repository and protects the commands that follow startup.
