@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 ARG PSE_PROXY
-# Trust the BAF CA only during npm ci. It is never copied into an image layer.
+# Mount the BAF CA for npm ci without copying it into the application directory.
 RUN --mount=type=secret,id=pse-ca,required=true \
     test -n "$PSE_PROXY" && \
     HTTP_PROXY="$PSE_PROXY" \

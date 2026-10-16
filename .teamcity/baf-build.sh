@@ -97,6 +97,8 @@ baf_started=true
 # Keep SCAN_ID and proxy exports in this shell so cleanup can end the same scan.
 # The upstream script also exports its CA path as NODE_EXTRA_CA_CERTS.
 source "$baf_workdir/startup.sh"
+# The vendor ERR trap rewrites every failure to exit 1. Preserve build exit codes.
+trap - ERR
 
 : "${SCAN_ID:?BAF startup did not return a scan ID}"
 : "${PSE_PROXY_IP:?BAF startup did not return a proxy IP}"
