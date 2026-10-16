@@ -1,7 +1,8 @@
 # InvisiRisk BAF in TeamCity
 
 All eight jobs in `/.teamcity.yml` run the same bootstrap flow before their
-application commands:
+application commands. `WORKSPACE` is set to the writable checkout directory
+and `CI_BUILDER` is set to `teamcity` before bootstrap:
 
 ```sh
 curl -sSf -H "x-api-key: ${IR_TOKEN}" "${API_URL%/}/ingestionapi/v1/pse/bootstrap" | bash

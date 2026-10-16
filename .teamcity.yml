@@ -13,6 +13,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -53,6 +54,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -100,6 +102,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -147,6 +150,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -193,6 +197,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -247,6 +252,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -305,6 +311,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
@@ -353,6 +360,7 @@ jobs:
         bash -se <<'JOB_SCRIPT'
         set +x
         set -o pipefail
+        export WORKSPACE="$PWD" CI_BUILDER=teamcity
 
         baf_cleanup() {
           status=$?
