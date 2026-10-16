@@ -1,5 +1,10 @@
+# Canonical TeamCity Pipelines configuration, loaded from this repository.
+# Push changes to this file on main to update the existing pipeline.
+# Requires Linux agents with Docker. All checks and deployment are mocked.
+# Configure repository, branches, and triggers in the TeamCity UI.
 parameters:
   container-image: node:22-bookworm-slim
+
 jobs:
   ValidateManifest:
     name: Validate dependency manifest
@@ -10,6 +15,7 @@ jobs:
         script-content: |-
           set -eu
           node -e 'const p = require("./package.json"); console.log(p.name); for (const [name, version] of Object.entries(p.dependencies)) console.log(`${name}: ${version}`)'
+
   QualityChecks:
     name: Mock lint and unit tests
     dependencies:
@@ -27,6 +33,7 @@ jobs:
       - path: reports/quality/result.txt
         share-with-jobs: false
         publish-artifact: true
+
   SecurityScan:
     name: Mock dependency security scan
     dependencies:
@@ -43,6 +50,7 @@ jobs:
       - path: reports/security/result.txt
         share-with-jobs: false
         publish-artifact: true
+
   BuildFrontend:
     name: Package frontend example
     dependencies:
@@ -60,6 +68,7 @@ jobs:
       - path: dist/frontend/index.html
         share-with-jobs: true
         publish-artifact: true
+
   BuildApi:
     name: Mock API build
     dependencies:
@@ -76,6 +85,7 @@ jobs:
       - path: dist/api/service.json
         share-with-jobs: true
         publish-artifact: true
+
   BuildWorker:
     name: Mock background worker build
     dependencies:
@@ -92,17 +102,24 @@ jobs:
       - path: dist/worker/service.json
         share-with-jobs: true
         publish-artifact: true
+
   IntegrationChecks:
     name: Mock integration checks
     dependencies:
-      - BuildFrontend
-      - BuildApi
-      - BuildWorker
+      - BuildFrontend:
+          files:
+            - dist/frontend/index.html
+      - BuildApi:
+          files:
+            - dist/api/service.json
+      - BuildWorker:
+          files:
+            - dist/worker/service.json
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           test -f dist/frontend/index.html
           test -f dist/api/service.json
           test -f dist/worker/service.json
@@ -113,18 +130,25 @@ jobs:
       - path: reports/integration/result.txt
         share-with-jobs: false
         publish-artifact: true
+
   PackageRelease:
     name: Assemble release archive
     dependencies:
-      - BuildFrontend
-      - BuildApi
-      - BuildWorker
+      - BuildFrontend:
+          files:
+            - dist/frontend/index.html
+      - BuildApi:
+          files:
+            - dist/api/service.json
+      - BuildWorker:
+          files:
+            - dist/worker/service.json
       - IntegrationChecks
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           mkdir -p release
           cp package.json dist/package.json
           tar -czf release/application.tar.gz -C dist frontend api worker package.json
@@ -132,15 +156,18 @@ jobs:
       - path: release/application.tar.gz
         share-with-jobs: true
         publish-artifact: true
+
   DeployStaging:
     name: Mock staging deployment
     dependencies:
-      - PackageRelease
+      - PackageRelease:
+          files:
+            - release/application.tar.gz
     steps:
       - type: script
         docker-image: '%container-image%'
         script-content: |-
-          set -eu
+          set -eux
           test -s release/application.tar.gz
           tar -tzf release/application.tar.gz
           echo "MOCK: upload release, migrate database, deploy services, and check health"
